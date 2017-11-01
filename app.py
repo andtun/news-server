@@ -6,7 +6,7 @@ from bottle import *
 
 @get("/")
 def main():
-    return static_file("index.html", root='.')
+    return "Oulala"
 
 # run the server
 run(host="0.0.0.0", port=os.environ.get('PORT', 5000))
