@@ -10,7 +10,9 @@ def html(filename):
 
 @get("/")
 def main():
-    return html("main")
+    if 'iamtester' in request.cookies:
+        return html('main')
+    return html("index")
 
 
 # ==================== Get template files ===================
