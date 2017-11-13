@@ -14,6 +14,15 @@ def main():
         return html('main')
     return html("index")
 
+@get("/cleverpage")
+def clever():
+    return html("clever")
+
+@post("/cleverpage")
+def clever():
+    name = request.forms['name']
+    return template('letstype.html', name = str(name.encode('ISO-8859-1').decode('utf-8')))
+
 
 # ==================== Get template files ===================
 
