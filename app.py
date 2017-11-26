@@ -1,45 +1,64 @@
 # This Python file uses the following encoding: utf-8
 
 import os
+import json
 from bottle import *
+from firebase import firebase
+
+AUTH_TABLE_ADR = "/Auth"
+
+def status_message(code, description=None):
+    return json.dumps({'code': code, 'description': description})
+
+class User:
+    login = ""
+    pwd = ""
+    mail = ""
+    telegram = ""
+
+    def __init__(self, login, pwd, mail, telegram):
+        self.login = login
+        self.pwd = pwd
+        self.mail = mail
+        self.telegram = telegram
+
+    @staticmethod
+    def get_from_auth(login):
+        return db.get(AUTH_TABLE_ADR, login)
+
+    @staticmethod
+    def login_exists(login):
+        res = User.get_from_auth(login) is not None
+        return res
+
+    def exists(self):
+        return User.login_exists(self.login)
+
+    @staticmethod
+    def get(login):
+        d = User.get_from_auth(login)
+        return User(d['login'],
+                    d['pwd'],
+                    d.get('mail', None),
+                    d.get('telegram', None))
 
 
-def html(filename):
-    return static_file(filename+".html", root='.')
+db = firebase.FirebaseApplication("https://jkdev-news.firebaseio.com/")
 
 
-@get("/")
-def main():
-    if 'iamtester' in request.cookies:
-        return html('main')
-    return html("index")
+@get("/<login>/register")
+def register(login):
 
-@get("/cleverpage")
-def clever():
-    return html("clever")
+    pwd = request.query['pwd']
+    mail = request.query.get('mail', None)
+    telegram = request.query.get('telegram', None)
 
-@post("/cleverpage")
-def clever():
-    name = request.forms['name']
-    return template('letstype.html', name = str(name.encode('ISO-8859-1').decode('utf-8')))
+    user = User(login, pwd, mail, telegram)
+    if not user.exists():
+        db.post(AUTH_TABLE_ADR + "/" + login, user.__dict__)
+        return status_message(200, 'Registration success')
 
-
-# ==================== Get template files ===================
-
-@get("/<filename>")
-def get_it(filename):
-    return static_file(filename, root='.')
-
-
-@get("/<whatever>/<filename>")
-def get_it(whatever, filename):
-    return static_file(filename, root=whatever)
-
-
-@get("/<whatever>/<wherever>/<filename>")
-def get_it(whatever, wherever, filename):
-    return static_file(filename, root=whatever+"/"+wherever)
-
+    return status_message(406, 'Username already taken')
 
 # run the server
 run(host="0.0.0.0", port=os.environ.get('PORT', 5000))
