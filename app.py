@@ -4,6 +4,7 @@ import os
 import json
 from bottle import *
 from firebase import firebase
+from collections import OrderedDict
 
 AUTH_TABLE_ADR = "/Auth"
 
@@ -19,16 +20,24 @@ class User:
     telegram = ""
     subscriptions = {}
 
-    def __init__(self, login, pwd, mail, telegram):
+    def __init__(self, login, pwd, mail, telegram, subscriptions):
         self.login = login
         self.pwd = pwd
         self.mail = mail
         self.telegram = telegram
-        self.subscriptions = {}
+        self.subscriptions = subscriptions
 
     @staticmethod
     def get_from_auth(login):
-        return db.get(AUTH_TABLE_ADR, login)
+        d = db.get(AUTH_TABLE_ADR, login)
+        print("Thats the d", d)
+        try:
+            for i in d.values():
+                print("The values id", d)
+                return i
+        except:
+            return None
+
 
     @staticmethod
     def login_exists(login):
@@ -36,6 +45,7 @@ class User:
         return res
 
     def exists(self):
+        print(self.login)
         return User.login_exists(self.login)
 
     @staticmethod
@@ -44,7 +54,8 @@ class User:
         return User(d['login'],
                     d['pwd'],
                     d.get('mail', None),
-                    d.get('telegram', None))
+                    d.get('telegram', None),
+                    d.get('subscriptions', {}))
 
     @staticmethod
     def register(user):
@@ -55,19 +66,24 @@ class User:
 
     @staticmethod
     def delete(login):
-        if User.exists(login):
+        user = User.get(login)
+        if user.exists():
             db.delete(AUTH_TABLE_ADR, login)
 
     def update(self):
         User.delete(self.login)
         User.register(self)
 
-    def add_subscriptions(self, source, *subscriptions):
+    def add_subscription(self, source, subscription):
+        if not isinstance(self.subscriptions, dict):
+            self.subscriptions = {}
+
         if source not in self.subscriptions.keys():
+            print("NOT IN KEYS!")
             self.subscriptions[source] = []
 
-        for sub in subscriptions:
-            self.subscriptions[source].append(sub)
+        print(self.subscriptions)
+        self.subscriptions[source].append(subscription)
 
         self.update()
 
@@ -87,7 +103,7 @@ def register(login):
     mail = request.query.get('mail', None)
     telegram = request.query.get('telegram', None)
 
-    user = User(login, pwd, mail, telegram)
+    user = User(login, pwd, mail, telegram, {})
     return User.register(user)
 
 
@@ -97,11 +113,13 @@ def add_sub(login):
     def add_multiple_subs(login, query):
         subs = json.loads(query['subscriptions'])
         user = User.get(login)
-        user.add_subscriptions(query['source'], subs)
+        for sub in subs:
+            user.add_subscription(query['source'], sub)
 
     def add_single_sub(login, query):
         user = User.get(login)
-        user.add_subscriptions([query['subscriptions']])
+        source = query.source
+        user.add_subscription(source, query['subscriptions'])
 
     multiple = 'multiple' in request.query
     if multiple:
@@ -117,13 +135,13 @@ def delete_sub(login):
 
     def delete_single_sub(login, query):
         user = User.get(login)
-        subs = query['subs']
+        subs = query['subscriptions']
         source = request.query['source']
         user.delete_subscriptions(source, [subs])
 
     def delete_multiple_subs(login, query):
         user = User.get(login)
-        subs = json.loads(query['subs'])
+        subs = json.loads(query['subscriptions'])
         source = request.query['source']
 
         for sub in subs:
@@ -136,6 +154,10 @@ def delete_sub(login):
         delete_single_sub(login, request.query)
 
     return status_message(200, 'Success deleting subscriptions')
+
+@get("/<login>/uinfo")
+def uinfo(login):
+    return json.dumps(User.get(login).__dict__)
 
 
 # run the server
