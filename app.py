@@ -89,7 +89,14 @@ class User:
 
     def delete_subscriptions(self, source, *subscriptions):
         for sub in subscriptions:
-            self.subscriptions.get(source, []).remove(sub)
+            subs = self.subscriptions.get(source, None)
+            if subs is not None:
+                if sub in subs:
+                    subs.remove(sub)
+                else:
+                    return status_message(404, "Subscription not found")
+            else:
+                return status_message(404, "Source not found")
         self.update()
 
 
