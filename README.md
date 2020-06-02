@@ -1,3 +1,5 @@
+**Transfered from the jkdev team**
+
 # JKDEV NEWS SERVER
 
 
